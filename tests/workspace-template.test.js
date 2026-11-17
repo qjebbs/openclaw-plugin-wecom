@@ -13,6 +13,38 @@ import {
 import { resetStateForTesting, setOpenclawConfig, setRuntime } from "../wecom/state.js";
 
 describe("upsertAgentIdOnlyEntry", () => {
+  it("adds dynamic agents to the current keyed agents.entries format", () => {
+    const previousStateDir = process.env.OPENCLAW_STATE_DIR;
+    process.env.OPENCLAW_STATE_DIR = "/root/.openclaw";
+    const cfg = {
+      agents: {
+        defaults: { workspace: "/root/.openclaw/workspace" },
+        entries: {
+          main: { model: "openai-codex/gpt-5.5", tools: { deny: ["dangerous"] } },
+        },
+      },
+    };
+    let changed;
+    try {
+      changed = upsertAgentIdOnlyEntry(cfg, "wecom-dm-alice", "main");
+    } finally {
+      if (previousStateDir === undefined) {
+        delete process.env.OPENCLAW_STATE_DIR;
+      } else {
+        process.env.OPENCLAW_STATE_DIR = previousStateDir;
+      }
+    }
+
+    assert.equal(changed, true);
+    assert.deepEqual(cfg.agents.entries["wecom-dm-alice"], {
+      name: "alice",
+      workspace: "/root/.openclaw/workspace/wecom-dm-alice",
+      agentDir: "/root/.openclaw/agents/wecom-dm-alice/agent",
+      model: "openai-codex/gpt-5.5",
+      tools: { deny: ["dangerous"] },
+    });
+  });
+
   it("adds heartbeat config when creating a dynamic agent entry", () => {
     const cfg = { agents: { list: [{ id: "main" }] } };
     const changed = upsertAgentIdOnlyEntry(cfg, "wecom-dm-alice");
@@ -192,6 +224,66 @@ describe("ensureDynamicAgentListed", () => {
 
     assert.equal(writes.length, 1);
     assert.ok(writes[0].agents.list.some((entry) => entry.id === "wecom-dm-alice"));
+  });
+
+  it("uses the current mutateConfigFile runtime API", async () => {
+    const cfg = {
+      channels: { wecom: {} },
+      agents: { entries: { main: {}, "wecom-dm-alice": {} } },
+    };
+    const mutations = [];
+    setOpenclawConfig(cfg);
+    setRuntime({
+      config: {
+        mutateConfigFile: async ({ mutate }) => {
+          const draft = {
+            channels: { wecom: {} },
+            agents: { entries: { main: {} } },
+          };
+          await mutate(draft);
+          mutations.push(draft);
+        },
+      },
+    });
+
+    await ensureDynamicAgentListed("wecom-dm-alice", null, "main", { persistToConfig: true });
+
+    assert.equal(mutations.length, 1);
+    assert.ok(mutations[0].agents.entries["wecom-dm-alice"]);
+  });
+
+  it("does not rewrite config when the dynamic agent entry is already complete", async () => {
+    const cfg = {
+      channels: { wecom: {} },
+      agents: {
+        entries: {
+          main: {},
+          "wecom-dm-alice": {
+            name: "alice",
+            workspace: "/root/.openclaw/workspace/wecom-dm-alice",
+            agentDir: "/root/.openclaw/agents/wecom-dm-alice/agent",
+          },
+        },
+      },
+    };
+    const mutations = [];
+    setOpenclawConfig(cfg);
+    setRuntime({
+      config: {
+        mutateConfigFile: async ({ mutate }) => {
+          const draft = {
+            channels: { wecom: {} },
+            agents: { entries: { main: {} } },
+          };
+          await mutate(draft);
+          mutations.push(draft);
+        },
+      },
+    });
+
+    await ensureDynamicAgentListed("wecom-dm-alice", null, "main", { persistToConfig: true });
+
+    assert.equal(mutations.length, 0);
   });
 });
 
