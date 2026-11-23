@@ -147,8 +147,7 @@ npm test
       },
       "dynamicAgents": {
         "enabled": true,
-        "adminBypass": false,
-        "persistToConfig": false
+        "adminBypass": false
       },
       "dm": {
         "createAgentOnFirstMessage": true
@@ -214,7 +213,6 @@ npm test
 | --- | --- | --- | --- |
 | `channels.wecom.dynamicAgents.enabled` | boolean | 否 | 是否启用动态 Agent，默认 `true` |
 | `channels.wecom.dynamicAgents.adminBypass` | boolean | 否 | 管理员是否绕过动态 Agent，默认 `false` |
-| `channels.wecom.dynamicAgents.persistToConfig` | boolean | 否 | 首次创建动态 Agent 时是否写入 `openclaw.json`，默认 `false`。开启后新会话可能触发 gateway 配置重载 |
 | `channels.wecom.dm.createAgentOnFirstMessage` | boolean | 否 | 私聊是否按用户建独立 Agent，默认 `true` |
 | `channels.wecom.groupChat.enabled` | boolean | 否 | 是否启用群聊处理，默认 `true` |
 | `channels.wecom.groupChat.requireMention` | boolean | 否 | 群聊是否要求 @ 才响应，默认 `true` |
@@ -222,6 +220,10 @@ npm test
 | `channels.wecom.workspaceTemplate` | string | 否 | 动态 Agent 工作区模板目录 |
 | `channels.wecom.workspaceTemplateExtraFiles` | string[] | 否 | 在默认模板文件之外额外复制的相对路径文件/目录，例如 `["scripts/", "requirements.txt"]`。会跳过绝对路径、`../`、`.git`、`node_modules`、`.env*` |
 | `channels.wecom.mediaLocalRoots` | string[] | 否 | 额外允许被动回复读取的宿主机目录列表。用于放行 `MEDIA:/abs/path` 或 `FILE:/abs/path` 指向的本地文件；默认只允许当前 Agent workspace 和浏览器产物目录。注意：浏览器工具返回的宿主机路径在 block reply 阶段仍可能被 core sandbox 校验拦下，建议先用 `stage_browser_media` 复制到 `/workspace/...` 后再回复。多账号模式下也可配置在 `channels.wecom.<accountId>.mediaLocalRoots`。修改后需重启 Gateway 生效 |
+
+> 动态 Agent 首次出现时会写入 `openclaw.json` 的 `agents.entries`（含 `workspace` 与 `agentDir`），否则新版本 OpenClaw 不会为其发布 runtime，回复会以 `prepared reply dispatch runtime owner was not published` 失败。该写入每个 Agent 只发生一次，首次消息可能因此触发一次 gateway 配置重载。
+>
+> 旧版 OpenClaw 在 Agent 工作区里留下的 `openclaw-workspace-state.json` 需要先用 `openclaw doctor --fix` 迁移，否则该工作区不会被新版本接受（报 `Legacy workspace setup state requires migration`）。
 
 ### 增强出站配置
 

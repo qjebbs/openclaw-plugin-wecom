@@ -2273,12 +2273,9 @@ async function processWsMessage({
     // there is no explicit binding, but the account's agentId points to the
     // actual parent agent whose properties the dynamic agent should inherit.
     const baseAgentId = account.config.agentId || routeAgentId;
-    await ensureDynamicAgentListed(dynamicAgentId, account.config.workspaceTemplate, baseAgentId, {
-      // Prepared model runtimes are published from the Gateway's persisted
-      // agent configuration. Dispatching immediately after an in-memory-only
-      // mutation leaves a new dynamic agent without a runtime owner.
-      persistToConfig: true,
-    });
+    // Prepared model runtimes are published from the Gateway's persisted agent
+    // configuration, so a new dynamic agent must be persisted before dispatch.
+    await ensureDynamicAgentListed(dynamicAgentId, account.config.workspaceTemplate, baseAgentId);
     route.sessionKey = route.sessionKey.replace(`agent:${routeAgentId}:`, `agent:${dynamicAgentId}:`);
     route.agentId = dynamicAgentId;
   }

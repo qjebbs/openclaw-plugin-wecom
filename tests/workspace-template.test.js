@@ -188,7 +188,7 @@ describe("ensureDynamicAgentListed", () => {
     resetStateForTesting();
   });
 
-  it("updates in-memory agents.list without persisting config by default", async () => {
+  it("persists a newly added agents.list entry", async () => {
     const cfg = {
       channels: { wecom: {} },
       agents: { list: [{ id: "main", model: "openai-codex/gpt-5.5" }] },
@@ -202,25 +202,6 @@ describe("ensureDynamicAgentListed", () => {
     });
 
     await ensureDynamicAgentListed("wecom-dm-alice", null, "main");
-
-    assert.equal(writes.length, 0);
-    assert.ok(cfg.agents.list.some((entry) => entry.id === "wecom-dm-alice"));
-  });
-
-  it("persists config only when explicitly requested", async () => {
-    const cfg = {
-      channels: { wecom: {} },
-      agents: { list: [{ id: "main" }] },
-    };
-    const writes = [];
-    setOpenclawConfig(cfg);
-    setRuntime({
-      config: {
-        writeConfigFile: async (nextCfg) => writes.push(nextCfg),
-      },
-    });
-
-    await ensureDynamicAgentListed("wecom-dm-alice", null, "main", { persistToConfig: true });
 
     assert.equal(writes.length, 1);
     assert.ok(writes[0].agents.list.some((entry) => entry.id === "wecom-dm-alice"));
@@ -246,7 +227,7 @@ describe("ensureDynamicAgentListed", () => {
       },
     });
 
-    await ensureDynamicAgentListed("wecom-dm-alice", null, "main", { persistToConfig: true });
+    await ensureDynamicAgentListed("wecom-dm-alice", null, "main");
 
     assert.equal(mutations.length, 1);
     assert.ok(mutations[0].agents.entries["wecom-dm-alice"]);
@@ -281,7 +262,7 @@ describe("ensureDynamicAgentListed", () => {
       },
     });
 
-    await ensureDynamicAgentListed("wecom-dm-alice", null, "main", { persistToConfig: true });
+    await ensureDynamicAgentListed("wecom-dm-alice", null, "main");
 
     assert.equal(mutations.length, 0);
   });

@@ -455,7 +455,7 @@ export function upsertAgentIdOnlyEntry(cfg, agentId, baseAgentId) {
   return changed;
 }
 
-export async function ensureDynamicAgentListed(agentId, templateDir, baseAgentId, options = {}) {
+export async function ensureDynamicAgentListed(agentId, templateDir, baseAgentId) {
   const normalizedId = String(agentId || "")
     .trim()
     .toLowerCase();
@@ -469,7 +469,6 @@ export async function ensureDynamicAgentListed(agentId, templateDir, baseAgentId
   } catch {
     configRuntime = null;
   }
-  const persistToConfig = options?.persistToConfig === true;
 
   const queue = (getEnsureDynamicAgentWriteQueue() || Promise.resolve())
     .then(async () => {
@@ -484,13 +483,11 @@ export async function ensureDynamicAgentListed(agentId, templateDir, baseAgentId
         logger.info("WeCom: dynamic agent added to in-memory agents.list", { agentId: normalizedId });
       }
 
-      // Persist only for an entry this process just added. Repeating the
-      // mutation on every message rewrites openclaw.json and reloads the
-      // Gateway before each reply. A hot reload that drops the entry makes the
-      // next message add it again, so the write still self-heals.
-      if (changed && !persistToConfig) {
-        logger.info("WeCom: dynamic agent config persistence skipped", { agentId: normalizedId });
-      } else if (changed) {
+      // Persist a newly added entry before dispatch. Prepared model runtimes are
+      // published from the persisted agent configuration, so an in-memory-only
+      // entry never gets a runtime owner. Already-known entries need no write;
+      // a hot reload that drops the entry makes the next message write it again.
+      if (changed) {
         // Safety check: refuse to write if critical config sections are missing,
         // which would indicate the in-memory snapshot is incomplete and writing
         // it would destroy the user's configuration (#136).
